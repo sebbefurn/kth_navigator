@@ -73,7 +73,7 @@ def get_location(location):
         if test_name(name, location) == True:
             coordinates = i[1][1]
             # Do some more stuff with coordinates
-            #print(coordinates)
+            # print(coordinates)
             return coordinates
 
     # Check the levenshtein-places
