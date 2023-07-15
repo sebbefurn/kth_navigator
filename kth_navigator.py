@@ -221,60 +221,7 @@ def get_microwaves():
 
  
 # User interaction
-question = input("INPUT: ")
-
-response = openai.ChatCompletion.create(
-    model=llm4,
-    messages=[
-        {"role": "system", "content": system_template},
-        {"role": "user", "content": question},
-    ],
-)
-
-print("First step passed")
-
-message = response["choices"][0]["message"]["content"]
-thought_end = message.index("Action")
-function_name_start = thought_end + len("Action: ")
-function_name_end = message.index("[")
-function_args_start = function_name_end + 1
-function_args_end = message.index("]")
-function_name = message[function_name_start:function_name_end]
-function_args = message[function_args_start:function_args_end]
-
-# Thought
-print(f"{message[0:thought_end]}")
-
-# Name
-print(f"Function name is {function_name}")
-callable_function = eval(function_name)
-
-print(f"Calling function {function_name} with args {function_args}")
-function_response = callable_function(function_args)
-
-prev_content = message[:function_args_end+2]
-prev_content += f"Observation: {function_response}"
-
-safe_net = 7
-final_answer = ""
-
-while(safe_net >= 0):
-    print(f"{8-safe_net} loop about to happen")
-    safe_net -= 1
-    response = openai.ChatCompletion.create(
-        model=llm4,
-        messages=[
-            {"role": "system", "content": system_template},
-            {"role": "user", "content": question},
-            {"role": "assistant", "content": prev_content},
-        ],
-    )
-    message = response["choices"][0]["message"]["content"]
-    if "Final Answer" in message:
-        start_end = message.index("Final Answer") + len("Final Answer: ")
-        final_answer = message[start_end: ]
-        break
-    message = response["choices"][0]["message"]["content"]
+def call_function(message):
     thought_end = message.index("Action")
     function_name_start = thought_end + len("Action: ")
     function_name_end = message.index("[")
@@ -283,23 +230,44 @@ while(safe_net >= 0):
     function_name = message[function_name_start:function_name_end]
     function_args = message[function_args_start:function_args_end]
 
-    print(f"{message[0:thought_end]}")
-
-    # Function name
-    print(f"Function name is {function_name}")
     callable_function = eval(function_name)
-
-    print(f"Calling function {function_name} with args {function_args}")
     function_response = callable_function(function_args)
 
     prev_content = message[:function_args_end+2]
-    prev_content += f"Observation: {function_response}"
+    prev_content += f"\nObservation: {function_response}"
 
-print(final_answer)
+    return prev_content
+    
+history = [
+    {"role": "system", "content": system_template},
+]
 
-# TODO: 
-# 1. Finish get_location() function
-# 2. Create other useful functions
-# 3. Create an agent using ReAct method
-# 4. Create a website and setup user interface
-# 5. Link user interface to our backend AI
+while (1):
+    if len(history) > 7:
+        history.pop(1)
+        history.pop(2)
+
+    tmp_history = history
+    safe_net = 7
+    question = input("INPUT: ")
+    history.append({"role": "user", "content": question})
+    tmp_history.append({"role": "user", "content": "Question: "+question})
+
+    while(safe_net >= 0):
+        safe_net -= 1
+        response = openai.ChatCompletion.create(
+            model=llm4,
+            messages=tmp_history,
+        )
+        message = response["choices"][0]["message"]["content"]
+        if "Final Answer" in message:
+            start_end = message.index("Final Answer") + len("Final Answer: ")
+            final_answer = message[start_end:]
+            history.append({"role": "assistant", "content": final_answer})
+            print(f"Final Answer: {final_answer}")
+            break
+        message = response["choices"][0]["message"]["content"]
+        prev_message = call_function(message)
+        print(prev_message)
+        tmp_history.append({"role": "assistant", "content": prev_message})
+
