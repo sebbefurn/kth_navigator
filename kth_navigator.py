@@ -285,7 +285,7 @@ while(safe_net >= 0):
 
     print(f"{message[0:thought_end]}")
 
-    #print(f"-------------\nENTIRE MESSAGE:\n{message}\n---------------")
+    # Function name
     print(f"Function name is {function_name}")
     callable_function = eval(function_name)
 
